@@ -21,7 +21,7 @@ class SoupMenuTelegramBot {
   private setupCronJob() {
     // Schedule task to run at 12:00 on every weekday
     cron.schedule(
-      "0 12 * * 1-5",
+      "0 14 * * 1-5",
       async () => {
         console.log("🕒 Running daily soup notification");
         try {
@@ -140,36 +140,41 @@ class SoupMenuTelegramBot {
       console.log("💬 Text message received:", ctx.message.text);
       const text = ctx.message.text.toLowerCase();
       const location = this.extractLocation(text);
+      const day = this.extractDay(text);
 
       try {
         if (text.includes("soep")) {
           if (text.includes("vandaag")) {
             const response = await this.getTodaySoup(location);
             await ctx.reply(response);
-          } else {
-            const day = this.extractDay(text);
-            if (day && location) {
+          } else if (day) {
+            // If day is specified but no location, show all soups for that day
+            if (!location) {
+              const response = await this.getSoupForDay(day);
+              await ctx.reply(response);
+            } else {
               const response = await this.getSoupForDayAndLocation(
                 day,
                 location
               );
               await ctx.reply(response);
-            } else if (location) {
-              const today = new Date();
-              const response = await this.getSoupForDayAndLocation(
-                today,
-                location
-              );
-              await ctx.reply(response);
-            } else {
-              await ctx.reply(this.getLocationOptions());
             }
+          } else if (location) {
+            const today = new Date();
+            const response = await this.getSoupForDayAndLocation(
+              today,
+              location
+            );
+            await ctx.reply(response);
+          } else {
+            await ctx.reply(this.getLocationOptions());
           }
         } else {
           await ctx.reply(
             "Hallo! Ik kan je helpen met het soepmenu. Probeer te vragen:\n" +
               "- 'Wat is de soep vandaag bij HQ?'\n" +
               "- 'Toon me de soep voor maandag bij HSL'\n" +
+              "- 'Welke soep is er maandag?'\n" +
               "- 'Welke soep is er bij LD?'"
           );
         }
@@ -195,11 +200,18 @@ class SoupMenuTelegramBot {
     const foundDay = days.find((day) => text.includes(day));
     if (!foundDay) return undefined;
 
-    const date = new Date();
-    const currentDay = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const targetDay = days.indexOf(foundDay) + 1; // +1 because our array starts at 0
-    const diff = targetDay - currentDay;
 
+    let diff = targetDay - currentDay;
+
+    // If the day has passed this week, get next week's occurrence
+    if (diff <= 0) {
+      diff += 7;
+    }
+
+    const date = new Date(today);
     date.setDate(date.getDate() + diff);
     return date;
   }
@@ -245,6 +257,32 @@ class SoupMenuTelegramBot {
 
   getLocationOptions(): string {
     return "Bij welke locatie wil je de soep weten? (HQ, HSL, of LD)";
+  }
+
+  async getSoupForDay(date: Date): Promise<string> {
+    const soups = await DatabaseService.getSoupsForDate(date);
+
+    if (soups.length === 0) {
+      return `Sorry, er zijn geen soepen beschikbaar op ${date.toLocaleDateString(
+        "nl-NL"
+      )}.`;
+    }
+
+    let response = `🍜 Soepen voor ${date.toLocaleDateString("nl-NL")}\n\n`;
+
+    soups.forEach((soup) => {
+      response += `${soup.naam}\n`;
+      response += `${
+        soup.vegetarisch ? "🌱 Vegetarisch" : "🥩 Niet vegetarisch"
+      }\n`;
+      response += "Beschikbaar bij:\n";
+      soup.locaties.forEach((loc) => {
+        response += `${loc.location.naam}: €${loc.prijs.toFixed(2)}\n`;
+      });
+      response += "\n";
+    });
+
+    return response;
   }
 
   async getAllLocationsSoup(date: Date): Promise<string> {
