@@ -74,7 +74,8 @@ export const DatabaseService = {
     datum: Date,
     locations: { locationNaam: string; prijs: number }[]
   ): Promise<SoupWithLocations> {
-    return prisma.$transaction(async (tx) => {
+    // @ts-ignore
+    return prisma.$transaction(async (tx: any) => {
       const soup = await tx.soup.create({
         data: {
           naam,
