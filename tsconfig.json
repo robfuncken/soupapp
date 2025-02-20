@@ -3,7 +3,7 @@
     "target": "es2015",
     "module": "commonjs",
     "lib": ["es2015", "es2016", "es2017"],
-    "outDir": "./dist",
+    "outDir": "dist",
     "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
@@ -11,15 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "noEmitOnError": true
   },
-  "files": [
-    "index.ts"
-  ],
-  "include": [
-    "./src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "soupadmin"
-  ]
+  "files": ["index.ts"],
+  "include": ["./src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "soupadmin"]
 }
