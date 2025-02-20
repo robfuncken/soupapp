@@ -11,14 +11,18 @@
   },
   "dependencies": {
     "botbuilder": "^4.21.0",
-    "restify": "^8.x",
-    "dotenv": "^16.x"
+    "restify": "^11.1.0",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
-    "@types/node": "^18.x",
-    "@types/restify": "^8.x",
-    "typescript": "^4.x",
-    "ts-node": "^10.x",
-    "nodemon": "^2.x"
+    "@types/node": "^20.10.0",
+    "@types/restify": "^8.5.12",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.1",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
+
