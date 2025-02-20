@@ -167,7 +167,7 @@ class SoupMenuTelegramBot {
           }
         } else {
           await ctx.reply(
-            "Hallo! Ik kan je helpen met het soep menu. Probeer te vragen:\n" +
+            "Hallo! Ik kan je helpen met het soepmenu. Probeer te vragen:\n" +
               "- 'Wat is de soep vandaag bij HQ?'\n" +
               "- 'Toon me de soep voor maandag bij HSL'\n" +
               "- 'Welke soep is er bij LD?'"
