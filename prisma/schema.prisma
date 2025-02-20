@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Soup {
+  id          Int            @id @default(autoincrement())
+  naam        String
+  vegetarisch Boolean
+  datum       DateTime
+  locaties    SoupLocation[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Location {
+  id        Int            @id @default(autoincrement())
+  naam      String         @unique
+  soepen    SoupLocation[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model SoupLocation {
+  id         Int      @id @default(autoincrement())
+  soup       Soup     @relation(fields: [soupId], references: [id])
+  soupId     Int
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+  prijs      Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([soupId, locationId])
+}

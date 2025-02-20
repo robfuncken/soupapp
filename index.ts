@@ -10,41 +10,16 @@ import {
 import * as restify from "restify";
 import * as path from "path";
 import * as dotenv from "dotenv";
+import "./src/express-server";
+import { DatabaseService } from "./src/services/database";
 
 const ENV_FILE = path.join(__dirname, ".env");
 dotenv.config({ path: ENV_FILE });
 
-// Define menu database type
-interface MenuItem {
-  main: string[];
-  sides: string[];
-  dessert: string;
-}
-
-interface MenuDatabase {
-  [key: string]: MenuItem;
-}
-
-// Sample menu data - In a real app, this would come from a database or API
-const menuDatabase: MenuDatabase = {
-  maandag: {
-    main: ["Gegrilde Kip", "Groenten Lasagna"],
-    sides: ["Gedroogde Broccoli", "GeKruide Kartoffels"],
-    dessert: "Appel Pie",
-  },
-  dinsdag: {
-    main: ["Vis Filet", "Kruidenrijst"],
-    sides: ["Groene Salade", "GeRoosterde Groenten"],
-    dessert: "Chocolade Pudding",
-  },
-  // Add other days...
-};
-
-class CafeteriaMenuBot extends TeamsActivityHandler {
+class SoupMenuBot extends TeamsActivityHandler {
   constructor() {
     super();
 
-    // Handle conversation update activity
     this.onConversationUpdate(async (context: TurnContext) => {
       if (
         context.activity.membersAdded &&
@@ -53,76 +28,101 @@ class CafeteriaMenuBot extends TeamsActivityHandler {
         for (const member of context.activity.membersAdded) {
           if (member.id !== context.activity.recipient.id) {
             await context.sendActivity(
-              "Hallo! Ik kan je helpen met het cafetaria menu. Probeer te vragen: - 'Wat is het menu vandaag?' - 'Toon me het menu voor maandag' - 'Wat is er voor lunch op dinsdag?'"
+              "Hallo! Ik kan je helpen met het soep menu. Probeer te vragen:\n" +
+                "- 'Wat is de soep vandaag bij HQ?'\n" +
+                "- 'Toon me de soep voor maandag bij HSL'\n" +
+                "- 'Welke soep is er bij LD?'"
             );
           }
         }
       }
     });
 
-    // Handler for messages
     this.onMessage(async (context: TurnContext) => {
       try {
-        console.log("Received message:", context.activity);
-
         const text = context.activity.text?.toLowerCase() || "";
+        const location = this.extractLocation(text);
 
-        if (text.includes("menu")) {
-          if (text.includes("today")) {
-            await this.sendTodayMenu(context);
+        if (text.includes("soep")) {
+          if (text.includes("vandaag")) {
+            await this.sendTodaySoup(context, location);
           } else {
             const day = this.extractDay(text);
-            if (day) {
-              await this.sendMenuForDay(context, day);
+            if (day && location) {
+              await this.sendSoupForDayAndLocation(context, day, location);
+            } else if (location) {
+              const today = new Date();
+              await this.sendSoupForDayAndLocation(context, today, location);
             } else {
-              await this.sendMenuOptions(context);
+              await this.sendLocationOptions(context);
             }
           }
         } else {
           await context.sendActivity({
             type: ActivityTypes.Message,
-            text: `Hallo! Ik kan je helpen met het cafetaria menu. Probeer te vragen:
-            - "Wat is het menu vandaag?"
-            - "Toon me het menu voor maandag"
-            - "Wat is er voor lunch op dinsdag?"`,
+            text:
+              "Hallo! Ik kan je helpen met het soep menu. Probeer te vragen:\n" +
+              "- 'Wat is de soep vandaag bij HQ?'\n" +
+              "- 'Toon me de soep voor maandag bij HSL'\n" +
+              "- 'Welke soep is er bij LD?'",
           });
         }
       } catch (error) {
         console.error("Error in message handler:", error);
         await context.sendActivity(
-          "Sorry, I encountered an error processing your request."
+          "Sorry, er is een fout opgetreden bij het verwerken van je verzoek."
         );
       }
     });
   }
 
+  extractLocation(text: string): string | undefined {
+    const locations = ["hq", "hsl", "ld"];
+    return locations
+      .find((loc) => text.includes(loc.toLowerCase()))
+      ?.toUpperCase();
+  }
+
   // Helper to extract day from message
-  extractDay(text: string): string | undefined {
+  extractDay(text: string): Date | undefined {
     const days = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag"];
-    return days.find((day) => text.includes(day));
+    const foundDay = days.find((day) => text.includes(day));
+    if (!foundDay) return undefined;
+
+    const date = new Date();
+    const currentDay = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const targetDay = days.indexOf(foundDay) + 1; // +1 because our array starts at 0
+    const diff = targetDay - currentDay;
+
+    date.setDate(date.getDate() + diff);
+    return date;
   }
 
-  // Send today's menu
-  async sendTodayMenu(context: TurnContext) {
-    const today = new Date()
-      .toLocaleDateString("nl-NL", { weekday: "long" })
-      .toLowerCase();
-    await this.sendMenuForDay(context, today);
+  async sendTodaySoup(context: TurnContext, location?: string) {
+    const today = new Date();
+    if (location) {
+      await this.sendSoupForDayAndLocation(context, today, location);
+    } else {
+      await this.sendAllLocationsSoup(context, today);
+    }
   }
 
-  // Send menu for specific day
-  async sendMenuForDay(context: TurnContext, day: string) {
-    const menu = menuDatabase[day];
+  async sendSoupForDayAndLocation(
+    context: TurnContext,
+    date: Date,
+    location: string
+  ) {
+    const soups = await DatabaseService.getSoupsForLocation(location, date);
 
-    if (!menu) {
-      await context.sendActivity(`Sorry, ik heb niet het menu voor ${day}.`);
+    if (soups.length === 0) {
+      await context.sendActivity(
+        `Sorry, er zijn geen soepen beschikbaar bij ${location} op ${date.toLocaleDateString(
+          "nl-NL"
+        )}.`
+      );
       return;
     }
 
-    // First send a text message
-    await context.sendActivity(`Hier is het menu voor ${day}:`);
-
-    // Then send the card
     const cardAttachment = CardFactory.adaptiveCard({
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
       type: "AdaptiveCard",
@@ -130,85 +130,122 @@ class CafeteriaMenuBot extends TeamsActivityHandler {
       body: [
         {
           type: "TextBlock",
-          text: `Menu voor ${day.charAt(0).toUpperCase() + day.slice(1)}`,
+          text: `Soepen bij ${location} - ${date.toLocaleDateString("nl-NL")}`,
           size: "Large",
           weight: "Bolder",
           horizontalAlignment: "center",
-          spacing: "medium",
         },
-        {
-          type: "Container",
-          style: "emphasis",
-          items: [
-            {
-              type: "TextBlock",
-              text: "Hoofdgerechten",
-              weight: "Bolder",
-              size: "Medium",
-              color: "Accent",
-            },
-            {
-              type: "TextBlock",
-              text: menu.main.join("\n• "),
-              wrap: true,
-              spacing: "small",
-            },
-          ],
-        },
-        {
-          type: "Container",
-          style: "emphasis",
-          items: [
-            {
-              type: "TextBlock",
-              text: "Bijgerechten",
-              weight: "Bolder",
-              size: "Medium",
-              color: "Accent",
-            },
-            {
-              type: "TextBlock",
-              text: menu.sides.join("\n• "),
-              wrap: true,
-              spacing: "small",
-            },
-          ],
-        },
-        {
-          type: "Container",
-          style: "emphasis",
-          items: [
-            {
-              type: "TextBlock",
-              text: "Dessert",
-              weight: "Bolder",
-              size: "Medium",
-              color: "Accent",
-            },
-            {
-              type: "TextBlock",
-              text: menu.dessert,
-              wrap: true,
-              spacing: "small",
-            },
-          ],
-        },
+        ...soups.map((soup) => {
+          const locationInfo = soup.locaties.find(
+            (loc) => loc.location.naam === location
+          )!;
+          return {
+            type: "Container",
+            style: "emphasis",
+            items: [
+              {
+                type: "TextBlock",
+                text: soup.naam,
+                size: "Medium",
+                weight: "Bolder",
+              },
+              {
+                type: "TextBlock",
+                text: `Prijs: €${locationInfo.prijs.toFixed(2)}`,
+                spacing: "small",
+              },
+              {
+                type: "TextBlock",
+                text: soup.vegetarisch
+                  ? "🌱 Vegetarisch"
+                  : "🥩 Niet vegetarisch",
+                spacing: "small",
+              },
+            ],
+          };
+        }),
       ],
     });
 
-    const messageWithCard = {
+    await context.sendActivity({
       type: ActivityTypes.Message,
       attachments: [cardAttachment],
-    };
-
-    await context.sendActivity(messageWithCard);
+    });
   }
 
-  // Send menu options when no specific day is mentioned
-  async sendMenuOptions(context: TurnContext) {
+  async sendLocationOptions(context: TurnContext) {
     await context.sendActivity(
-      "Welke dag wil je het menu voor zien? (Maandag-Vrijdag)"
+      "Bij welke locatie wil je de soep weten? (HQ, HSL, of LD)"
     );
+  }
+
+  async sendAllLocationsSoup(context: TurnContext, date: Date) {
+    await this.sendAllSoupsForDay(context, date);
+  }
+
+  // Add a method to show all soups for a day
+  async sendAllSoupsForDay(context: TurnContext, date: Date) {
+    const soups = await DatabaseService.getSoupsForDate(date);
+    if (soups.length === 0) {
+      await context.sendActivity(
+        `Sorry, ik heb geen soep informatie voor ${date.toLocaleDateString(
+          "nl-NL"
+        )}.`
+      );
+      return;
+    }
+
+    const cardAttachment = CardFactory.adaptiveCard({
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      type: "AdaptiveCard",
+      version: "1.5",
+      body: [
+        {
+          type: "TextBlock",
+          text: `Alle soepen voor ${
+            date.toLocaleDateString("nl-NL").charAt(0).toUpperCase() +
+            date.toLocaleDateString("nl-NL").slice(1)
+          }`,
+          size: "Large",
+          weight: "Bolder",
+          horizontalAlignment: "center",
+        },
+        ...soups.map((soup) => ({
+          type: "Container",
+          style: "emphasis",
+          items: [
+            {
+              type: "TextBlock",
+              text: soup.naam,
+              size: "Medium",
+              weight: "Bolder",
+            },
+            {
+              type: "TextBlock",
+              text: soup.vegetarisch ? "🌱 Vegetarisch" : "🥩 Niet vegetarisch",
+              spacing: "small",
+            },
+            {
+              type: "TextBlock",
+              text: "Beschikbaar bij:",
+              spacing: "small",
+            },
+            {
+              type: "TextBlock",
+              text: soup.locaties
+                .map((loc) => `${loc.location.naam}: €${loc.prijs.toFixed(2)}`)
+                .join("\n"),
+              spacing: "small",
+            },
+          ],
+        })),
+      ],
+    });
+
+    await context.sendActivity({
+      type: ActivityTypes.Message,
+      attachments: [cardAttachment],
+    });
   }
 
   // Add the run method
@@ -231,7 +268,7 @@ server.use((req, res, next) => {
   return next();
 });
 
-server.listen(process.env.port || process.env.PORT || 3978, () => {
+server.listen(process.env.BOT_PORT || process.env.PORT || 3978, () => {
   console.log(`\n${server.name} listening to ${server.url}`);
 });
 
@@ -263,7 +300,7 @@ adapter.onTurnError = async (context, error) => {
 };
 
 // Create bot instance
-const bot = new CafeteriaMenuBot();
+const bot = new SoupMenuBot();
 
 // Listen for incoming requests
 server.post("/api/messages", async (req, res) => {
