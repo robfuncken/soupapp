@@ -7,23 +7,22 @@
     "build": "tsc",
     "start": "ts-node index.ts",
     "dev": "ts-node index.ts",
-    "start:bot": "ts-node index.ts",
-    "start:express": "ts-node src/express-server.ts",
-    "dev:bot": "nodemon index.ts",
-    "dev:express": "nodemon src/express-server.ts",
     "watch": "tsc -w"
   },
   "dependencies": {
+    "@prisma/client": "^6.4.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
-    "botbuilder": "^4.21.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.21.2",
-    "restify": "^11.1.0"
+    "node-cron": "^3.0.3",
+    "restify": "^11.1.0",
+    "telegraf": "^4.16.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@types/node-cron": "^3.0.11",
     "@types/restify": "^8.5.12",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",
