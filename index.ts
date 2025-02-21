@@ -1,4 +1,3 @@
-import * as restify from "restify";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { Telegraf } from "telegraf";
@@ -21,7 +20,7 @@ class SoupMenuTelegramBot {
   private setupCronJob() {
     // Schedule task to run at 12:00 on every weekday
     cron.schedule(
-      "0 14 * * 1-5",
+      "0 12 * * 1-5",
       async () => {
         console.log("🕒 Running daily soup notification");
         try {
@@ -344,24 +343,8 @@ class SoupMenuTelegramBot {
 const bot = new SoupMenuTelegramBot(process.env.TELEGRAM_BOT_TOKEN!);
 
 // Start bot with error handling
+console.log("Starting bot...");
 bot.start().catch((error) => {
   console.error("Failed to start bot:", error);
   process.exit(1);
-});
-
-// Create HTTP server for health checks
-const server = restify.createServer();
-server.use(restify.plugins.bodyParser());
-
-// Health check endpoint
-server.get(
-  "/health",
-  (req: restify.Request, res: restify.Response, next: restify.Next) => {
-    res.send(200, "Health check passed");
-    next();
-  }
-);
-
-server.listen(process.env.PORT || 3978, () => {
-  console.log(`\n${server.name} listening to ${server.url}`);
 });
