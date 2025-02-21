@@ -22,3 +22,8 @@ It includes a Next.js frontend to display the soups and a admin panel to update 
 - Uses Telegraf for Telegram bot
 - Implemented cronjobs for daily notifications
 - Uses a database with Prisma for soup management.
+
+## Screenshots
+
+![image](https://github.com/user-attachments/assets/a5e90ce2-fa72-43f5-8d50-16b3f2892464)
+![image](https://github.com/user-attachments/assets/234834af-9d8a-4933-809a-c87132a381a8)
